@@ -195,9 +195,12 @@ export const HUB_UV = [
 
 export function cassetteFace(track: Track) {
   return canvasTexture(512, 372, (ctx) => {
-    ctx.fillStyle = '#1b1922';
+    // Coloured shell, like the changer's tapes, with a paper label on top.
+    ctx.fillStyle = track.color;
     ctx.fillRect(0, 0, 512, 372);
-    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(0, 212, 512, 160);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     for (let x = 0; x < 512; x += 6) {
       ctx.beginPath();
       ctx.moveTo(x, 212);
@@ -209,12 +212,12 @@ export function cassetteFace(track: Track) {
     ctx.save();
     roundRect(ctx, 20, 18, 472, 188, 14);
     ctx.clip();
-    ctx.fillStyle = track.color;
+    ctx.fillStyle = '#f3ede0';
     ctx.fillRect(20, 18, 472, 188);
-    ctx.fillStyle = track.accent;
+    ctx.fillStyle = '#15131a';
     ctx.fillRect(20, 18, 472, 34);
     for (let i = 0; i < 12; i++) {
-      ctx.fillStyle = i % 2 ? track.accent : 'rgba(0,0,0,0)';
+      ctx.fillStyle = i % 2 ? track.color : 'rgba(0,0,0,0)';
       ctx.beginPath();
       ctx.moveTo(380 + i * 12, 206);
       ctx.lineTo(392 + i * 12, 206);
@@ -224,7 +227,7 @@ export function cassetteFace(track: Track) {
     }
     ctx.restore();
 
-    ctx.fillStyle = track.color;
+    ctx.fillStyle = '#f3ede0';
     ctx.font = `800 20px ${SANS}`;
     ctx.fillText('DAT', 36, 43);
     ctx.textAlign = 'right';
@@ -274,7 +277,7 @@ export function cassetteFace(track: Track) {
     roundRect(ctx, 72, 230, 368, 14, 7);
     ctx.fill();
 
-    ctx.fillStyle = '#2c2935';
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
     for (const [x, y] of [[10, 362], [502, 362], [36, 214], [476, 214]]) {
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, Math.PI * 2);
@@ -293,6 +296,106 @@ export function cassetteSpine(track: Track) {
     ctx.textAlign = 'right';
     ctx.font = `700 22px ${SANS}`;
     ctx.fillText(track.title.toUpperCase(), 496, 33);
+  });
+}
+
+/** Outer short end of the cassette: what faces you on the changer. */
+export function cassetteEnd(track: Track) {
+  return canvasTexture(64, 384, (ctx) => {
+    ctx.fillStyle = track.color;
+    ctx.fillRect(0, 0, 64, 384);
+    ctx.fillStyle = '#f3ede0';
+    ctx.fillRect(8, 40, 48, 304);
+    ctx.translate(32, 192);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#15131a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 40px ${SANS}`;
+    ctx.fillText(String(track.pgm), 0, 2);
+  });
+}
+
+/* ------------------------------------------------------------ carousel */
+
+/**
+ * Brushed platter top, drawn in platter space: canvas x = +x, canvas y = +z.
+ * `angleOf(i)` gives each slot's angle (from +z towards +x).
+ */
+export function platterTexture(slots: number, angleOf: (i: number) => number, radius: number, inner: number, outer: number) {
+  const S = 1024;
+  const k = S / 2 / radius;
+  return canvasTexture(S, S, (ctx) => {
+    ctx.translate(S / 2, S / 2);
+    ctx.fillStyle = '#b9b9c0';
+    ctx.beginPath();
+    ctx.arc(0, 0, S / 2, 0, Math.PI * 2);
+    ctx.fill();
+    for (let r = 4; r < S / 2; r += 1.5) {
+      const v = 165 + Math.random() * 50;
+      ctx.strokeStyle = `rgba(${v},${v},${v + 6},0.55)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // Slot guides: a darker pad with two rails for each cassette.
+    for (let i = 0; i < slots; i++) {
+      const a = angleOf(i);
+      ctx.save();
+      ctx.rotate(-a + Math.PI / 2);
+      ctx.fillStyle = 'rgba(30,30,40,0.18)';
+      ctx.fillRect(inner * k, -0.2 * k, (outer - inner) * k, 0.4 * k);
+      ctx.fillStyle = 'rgba(20,20,28,0.55)';
+      ctx.fillRect(inner * k, -0.2 * k, (outer - inner) * k, 3);
+      ctx.fillRect(inner * k, 0.2 * k - 3, (outer - inner) * k, 3);
+      ctx.restore();
+    }
+    ctx.strokeStyle = 'rgba(40,40,50,0.6)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, S / 2 - 3, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+}
+
+/** Centre dial with slot numbers, same mapping as `platterTexture`. */
+export function dialTexture(slots: number, angleOf: (i: number) => number) {
+  const S = 512;
+  return canvasTexture(S, S, (ctx) => {
+    ctx.translate(S / 2, S / 2);
+    const g = ctx.createRadialGradient(0, 0, 10, 0, 0, S / 2);
+    g.addColorStop(0, '#e9e9ee');
+    g.addColorStop(1, '#a9a9b2');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, S / 2, 0, Math.PI * 2);
+    ctx.fill();
+    for (let r = 6; r < S / 2; r += 2) {
+      ctx.strokeStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.12})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#1d1b24';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 30px ${SANS}`;
+    for (let i = 0; i < slots; i++) {
+      const rot = -angleOf(i) + Math.PI / 2;
+      ctx.save();
+      ctx.rotate(rot);
+      ctx.fillRect(S / 2 - 26, -2, 20, 4);
+      ctx.translate(S / 2 - 62, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText(String(i + 1), 0, 0);
+      ctx.restore();
+    }
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#2a2833';
+    ctx.beginPath();
+    ctx.arc(0, 0, S / 2 - 96, 0, Math.PI * 2);
+    ctx.stroke();
   });
 }
 

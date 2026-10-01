@@ -3,8 +3,8 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { ExtrudeGeometry, Path, Quaternion, Shape, Vector3, type Group } from 'three';
 import { EJECT_T, LOAD_T, type Deck } from './deck';
-import { CASSETTE, FACE, HOVER, WHEEL_STEP, clamp, ease, slotPose, wheelPose } from './layout';
-import { HUB_UV, cassetteFace, cassetteSpine } from './textures';
+import { CASSETTE, FACE, HOVER, carouselPose, clamp, ease, slotPose } from './layout';
+import { HUB_UV, cassetteEnd, cassetteFace, cassetteSpine } from './textures';
 import type { Track } from './tracks';
 
 /** Toothed hub ring like the one visible through the SDAT lid. */
@@ -63,18 +63,19 @@ export function Cassette({ track, index, deck }: { track: Track; index: number; 
   const hubs = useRef<(Group | null)[]>([]);
   const face = useMemo(() => cassetteFace(track), [track]);
   const spine = useMemo(() => cassetteSpine(track), [track]);
+  const end = useMemo(() => cassetteEnd(track), [track]);
+  const n = deck.tracks.length;
 
   useFrame((_, dt) => {
     const g = root.current;
     if (!g) return;
     const { position: pos, quaternion: quat } = g;
     const a = deck.anim;
-    let scale = 1;
 
     if (a && a.index === index) {
       if (a.kind === 'load') {
         if (a.t < LOAD_T.fly) {
-          wheelPose(index, deck.scroll, pA, qA);
+          carouselPose(index, deck.scroll, n, pA, qA);
           slotPose(HOVER, pB, qB);
           arc(ease(a.t / LOAD_T.fly), pos, quat);
         } else {
@@ -86,19 +87,14 @@ export function Cassette({ track, index, deck }: { track: Track; index: number; 
         slotPose(HOVER * e, pos, quat);
       } else {
         slotPose(HOVER, pA, qA);
-        wheelPose(index, deck.scroll, pB, qB);
+        carouselPose(index, deck.scroll, n, pB, qB);
         arc(ease(clamp((a.t - EJECT_T.rise) / (EJECT_T.fly - EJECT_T.rise), 0, 1)), pos, quat);
       }
     } else if (deck.loaded === index) {
       slotPose(0, pos, quat);
     } else {
-      const th = Math.abs(wheelPose(index, deck.scroll, pos, quat));
-      const focus = Math.max(0, 1 - th / WHEEL_STEP);
-      scale = clamp((1.75 - th) / 0.4, 0, 1) * (1 + 0.06 * focus);
+      carouselPose(index, deck.scroll, n, pos, quat);
     }
-
-    g.visible = scale > 0.001;
-    g.scale.setScalar(Math.max(scale, 0.001));
 
     if (deck.isMounted(index)) {
       for (const h of hubs.current) if (h) h.rotation.z -= deck.spin * dt;
@@ -125,8 +121,12 @@ export function Cassette({ track, index, deck }: { track: Track; index: number; 
       onPointerOut={() => (document.body.style.cursor = '')}
     >
       <RoundedBox args={[CASSETTE.w, CASSETTE.h, CASSETTE.t]} radius={0.06} smoothness={3} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#1d1b25" roughness={0.3} clearcoat={0.8} clearcoatRoughness={0.2} />
+        <meshPhysicalMaterial color={track.color} roughness={0.32} clearcoat={0.8} clearcoatRoughness={0.2} />
       </RoundedBox>
+      <mesh position-x={CASSETTE.w / 2 + 0.002} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[CASSETTE.t - 0.08, CASSETTE.h - 0.16]} />
+        <meshStandardMaterial map={end} roughness={0.55} />
+      </mesh>
       <mesh position-z={CASSETTE.t / 2 + 0.002}>
         <planeGeometry args={[FACE.w, FACE.h]} />
         <meshStandardMaterial map={face} roughness={0.55} />

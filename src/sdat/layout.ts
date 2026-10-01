@@ -4,31 +4,45 @@ export const CASSETTE = { w: 2.2, h: 1.6, t: 0.3 };
 /** Printed face of the cassette, same aspect as its canvas (512x372). */
 export const FACE = { w: 2.1, h: 2.1 * (372 / 512) };
 
-export const PLAYER_POS = new Vector3(1.9, 0.45, -0.3);
+export const PLAYER_POS = new Vector3(2.85, 0.45, -0.3);
 export const PLAYER_YAW = -0.32;
 /** Cassette centre inside the bay, in player space. */
 export const SLOT = new Vector3(1.2, 0.36, -0.05);
 export const HOVER = 1.5;
 
-export const WHEEL_POS = new Vector3(-3.05, 1.95, 0.9);
-export const WHEEL_YAW = 0.22;
-export const WHEEL_TILT = -0.5;
-export const WHEEL_R = 2.05;
-export const WHEEL_STEP = 2 * Math.asin((CASSETTE.h / 2 + 0.1) / WHEEL_R);
+/** Turntable changer: cassettes stand on edge in radial slots, spine up. */
+export const CAROUSEL_POS = new Vector3(-3.4, 0, 0.5);
+export const PLATTER_TOP = 0.22;
+export const PLATTER_R = 3.15;
+export const HUB_R = 0.78;
+/** Distance from the centre to the middle of a cassette. */
+export const SLOT_R = HUB_R + 0.1 + CASSETTE.w / 2;
+/** Platter angle (from +z towards +x) of the selected slot: faces the camera. */
+export const FRONT = 0.35;
+/** Selected cassette rises this far out of its slot. */
+export const POP = 0.5;
+
+/** Slots on the platter; empty ones stay visible like the real changer. */
+export const slotCount = (tracks: number) => Math.max(16, tracks);
+export const slotStep = (tracks: number) => (Math.PI * 2) / slotCount(tracks);
 
 const ONE = new Vector3(1, 1, 1);
 const PLAYER_Q = new Quaternion().setFromEuler(new Euler(0, PLAYER_YAW, 0));
 const PLAYER_MAT = new Matrix4().compose(PLAYER_POS, PLAYER_Q, ONE);
-const WHEEL_Q = new Quaternion().setFromEuler(new Euler(WHEEL_TILT, WHEEL_YAW, 0, 'YXZ'));
-const WHEEL_MAT = new Matrix4().compose(WHEEL_POS, WHEEL_Q, ONE);
 const e = new Euler();
 
-/** World pose of cassette `i` on the wheel. Returns its angle from the front. */
-export function wheelPose(i: number, scroll: number, pos: Vector3, quat: Quaternion) {
-  const th = (i - scroll) * WHEEL_STEP;
-  pos.set(0, WHEEL_R * Math.sin(th), WHEEL_R * Math.cos(th)).applyMatrix4(WHEEL_MAT);
-  quat.setFromEuler(e.set(-th, 0, 0)).premultiply(WHEEL_Q);
-  return th;
+/**
+ * World pose of cassette `i` standing in its carousel slot. Positive angles
+ * sit to the right of the front, so raising `scroll` slides tapes leftwards.
+ */
+export function carouselPose(i: number, scroll: number, tracks: number, pos: Vector3, quat: Quaternion) {
+  const offset = i - scroll;
+  const phi = FRONT + offset * slotStep(tracks);
+  const focus = Math.max(0, 1 - Math.abs(offset));
+  const r = SLOT_R + 0.18 * focus;
+  pos.set(Math.sin(phi) * r, PLATTER_TOP + CASSETTE.h / 2 + POP * focus, Math.cos(phi) * r).add(CAROUSEL_POS);
+  // Local +X (the long edge) points outwards; +Y (the spine) faces up.
+  quat.setFromEuler(e.set(0, phi - Math.PI / 2, 0));
 }
 
 /** World pose of a cassette lying in the player bay, `lift` units above it. */

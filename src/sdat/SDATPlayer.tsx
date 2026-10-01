@@ -3,22 +3,22 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Vector3 } from 'three';
 import { AudioEngine } from './audio';
+import { Carousel } from './Carousel';
 import { Cassette } from './Cassette';
 import { Deck, type DeckUI } from './deck';
 import { Player } from './Player';
 import { DEFAULT_TRACKS, type Track } from './tracks';
-import { Wheel } from './Wheel';
 import './sdat.css';
 
-const LOOK = new Vector3(-0.75, 0.9, 0.3);
-const CAM = new Vector3(0.5, 7.6, 11.2);
+const LOOK = new Vector3(-0.6, 0.5, 0.4);
+const CAM = new Vector3(0.6, 9.6, 12.6);
 const tmp = new Vector3();
 
 function Director({ deck }: { deck: Deck }) {
   const { camera, size, pointer } = useThree();
   useFrame((_, dt) => {
     deck.update(Math.min(dt, 0.05));
-    // Pull back on narrow screens so both the wheel and player fit.
+    // Pull back on narrow screens so both the carousel and player fit.
     const aspect = size.width / size.height;
     const k = aspect < 1.55 ? Math.min(2.4, 1.55 / aspect) : 1;
     tmp.set(CAM.x + pointer.x * 0.5, CAM.y + pointer.y * 0.3, CAM.z).sub(LOOK).multiplyScalar(k).add(LOOK);
@@ -39,7 +39,7 @@ const STATUS_TEXT: Record<DeckUI['status'], string> = {
 };
 
 export interface SDATPlayerProps {
-  /** Cassettes on the wheel. Give a track a `src` to play an audio file instead of the synth. */
+  /** Cassettes on the carousel. Give a track a `src` to play an audio file instead of the synth. */
   tracks?: Track[];
 }
 
@@ -54,23 +54,26 @@ export default function SDATPlayer({ tracks = DEFAULT_TRACKS }: SDATPlayerProps)
     const el = root.current!;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      // Vertical wheels and horizontal trackpad swipes both spin the platter.
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const px = e.deltaMode === 1 ? d * 16 : d;
       deck.scrollBy(Math.max(-1, Math.min(1, px * 0.006)));
     };
-    let dragY: number | null = null;
-    const onDown = (e: PointerEvent) => (dragY = e.clientY);
+    // Dragging left pulls the tapes on the right round to the front.
+    let dragX: number | null = null;
+    const onDown = (e: PointerEvent) => (dragX = e.clientX);
     const onMove = (e: PointerEvent) => {
-      if (dragY === null || !(e.buttons & 1)) return;
-      deck.scrollBy((e.clientY - dragY) * 0.012);
-      dragY = e.clientY;
+      if (dragX === null || !(e.buttons & 1)) return;
+      deck.scrollBy((dragX - e.clientX) * 0.01);
+      dragX = e.clientX;
     };
-    const onUp = () => (dragY = null);
+    const onUp = () => (dragX = null);
     const onKey = (e: KeyboardEvent) => {
       const k = e.key;
-      if (k === 'ArrowDown') deck.scrollBy(1);
-      else if (k === 'ArrowUp') deck.scrollBy(-1);
-      else if (k === 'ArrowRight') deck.press('next');
-      else if (k === 'ArrowLeft') deck.press('prev');
+      if (k === 'ArrowRight' && e.shiftKey) deck.press('next');
+      else if (k === 'ArrowLeft' && e.shiftKey) deck.press('prev');
+      else if (k === 'ArrowRight' || k === 'ArrowDown') deck.scrollBy(1);
+      else if (k === 'ArrowLeft' || k === 'ArrowUp') deck.scrollBy(-1);
       else if (k === 'Enter') deck.load(deck.selected);
       else if (k === ' ') deck.press('play');
       else if (k === 'e' || k === 'E') deck.press('open');
@@ -129,7 +132,7 @@ export default function SDATPlayer({ tracks = DEFAULT_TRACKS }: SDATPlayerProps)
         </mesh>
 
         <Player deck={deck} />
-        <Wheel deck={deck} />
+        <Carousel deck={deck} />
         {tracks.map((t, i) => (
           <Cassette key={t.pgm + t.title} track={t} index={i} deck={deck} />
         ))}
@@ -156,10 +159,10 @@ export default function SDATPlayer({ tracks = DEFAULT_TRACKS }: SDATPlayerProps)
       </section>
 
       <footer className="sdat-hints">
-        <span><kbd>scroll</kbd> browse tapes</span>
+        <span><kbd>scroll</kbd> <kbd>drag</kbd> <kbd>← →</kbd> spin carousel</span>
         <span><kbd>click</kbd> load</span>
         <span><kbd>space</kbd> play / pause</span>
-        <span><kbd>← →</kbd> change tape</span>
+        <span><kbd>shift ← →</kbd> change tape</span>
         <span><kbd>E</kbd> eject</span>
       </footer>
     </div>
