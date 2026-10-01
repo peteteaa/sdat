@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react';
 import { ExtrudeGeometry, Path, Quaternion, Shape, Vector3, type Group } from 'three';
 import { EJECT_T, LOAD_T, type Deck } from './deck';
 import { CASSETTE, FACE, HOVER, carouselPose, clamp, ease, slotPose } from './layout';
-import { HUB_UV, cassetteEnd, cassetteFace, cassetteSpine } from './textures';
+import { HUB_UV, cassetteBack, cassetteEnd, cassetteFace, cassetteSpine } from './textures';
 import type { Track } from './tracks';
 
 /** Toothed hub ring like the one visible through the SDAT lid. */
@@ -62,6 +62,7 @@ export function Cassette({ track, index, deck }: { track: Track; index: number; 
   const root = useRef<Group>(null);
   const hubs = useRef<(Group | null)[]>([]);
   const face = useMemo(() => cassetteFace(track), [track]);
+  const back = useMemo(() => cassetteBack(track), [track]);
   const spine = useMemo(() => cassetteSpine(track), [track]);
   const end = useMemo(() => cassetteEnd(track), [track]);
   const n = deck.tracks.length;
@@ -97,7 +98,10 @@ export function Cassette({ track, index, deck }: { track: Track; index: number; 
     }
 
     if (deck.isMounted(index)) {
-      for (const h of hubs.current) if (h) h.rotation.z -= deck.spin * dt;
+      // Indices 0-1 face front, 2-3 are the same reels seen from the back.
+      hubs.current.forEach((h, i) => {
+        if (h) h.rotation.z += (i < 2 ? -1 : 1) * deck.spin * dt;
+      });
     }
   });
 
@@ -138,6 +142,16 @@ export function Cassette({ track, index, deck }: { track: Track; index: number; 
       {hubPos.map(([x, y], i) => (
         <Hub key={i} x={x} y={y} spinRef={(g) => (hubs.current[i] = g)} />
       ))}
+      {/* Side B. */}
+      <group rotation-y={Math.PI}>
+        <mesh position-z={CASSETTE.t / 2 + 0.002}>
+          <planeGeometry args={[FACE.w, FACE.h]} />
+          <meshStandardMaterial map={back} roughness={0.55} />
+        </mesh>
+        {hubPos.map(([x, y], i) => (
+          <Hub key={i} x={-x} y={y} spinRef={(g) => (hubs.current[i + 2] = g)} />
+        ))}
+      </group>
     </group>
   );
 }

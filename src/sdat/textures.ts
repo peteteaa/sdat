@@ -299,6 +299,107 @@ export function cassetteSpine(track: Track) {
   });
 }
 
+/**
+ * Side B of the shell: liner-note label, record-protect tab, and the same tape
+ * window seen from behind (so the full reel is on the right).
+ */
+export function cassetteBack(track: Track) {
+  return canvasTexture(512, 372, (ctx) => {
+    ctx.fillStyle = track.color;
+    ctx.fillRect(0, 0, 512, 372);
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(0, 212, 512, 160);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    for (let y = 216; y < 372; y += 6) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(512, y);
+      ctx.stroke();
+    }
+
+    // Liner-note label.
+    ctx.save();
+    roundRect(ctx, 20, 18, 472, 188, 14);
+    ctx.clip();
+    ctx.fillStyle = '#f3ede0';
+    ctx.fillRect(20, 18, 472, 188);
+    ctx.fillStyle = track.color;
+    ctx.fillRect(20, 18, 472, 30);
+    ctx.restore();
+
+    ctx.fillStyle = '#15131a';
+    ctx.font = `800 18px ${SANS}`;
+    ctx.fillText('SIDE B', 36, 40);
+    ctx.textAlign = 'right';
+    ctx.fillText(`PGM ${track.pgm}`, 478, 40);
+    ctx.textAlign = 'left';
+
+    ctx.font = `800 24px ${SANS}`;
+    ctx.fillText(track.title.toUpperCase(), 36, 82, 300);
+    ctx.font = `600 15px ${SANS}`;
+    ctx.globalAlpha = 0.75;
+    ctx.fillText(track.subtitle.toUpperCase(), 36, 104, 300);
+    ctx.globalAlpha = 0.55;
+    ctx.font = `600 13px ${SANS}`;
+    [
+      'DIGITAL AUDIO TAPE  ·  DT-120',
+      '48 kHz / 16 bit  ·  SP MODE',
+      'REC DATE ____ / ____ / 2015',
+      'TOKYO-3 MUNICIPAL LIBRARY',
+    ].forEach((l, i) => ctx.fillText(l, 36, 130 + i * 18));
+    ctx.globalAlpha = 1;
+
+    // Ruled lines for handwriting, and a barcode.
+    ctx.fillStyle = 'rgba(21,19,26,0.25)';
+    for (let i = 0; i < 3; i++) ctx.fillRect(350, 74 + i * 26, 124, 2);
+    let x = 352;
+    for (let i = 0; x < 474; i++) {
+      const w = 1 + ((track.pgm * 7 + i * 13) % 4);
+      if (i % 2 === 0) {
+        ctx.fillStyle = '#15131a';
+        ctx.fillRect(x, 150, w, 34);
+      }
+      x += w + 1;
+    }
+    ctx.font = `600 11px ${SANS}`;
+    ctx.fillStyle = '#15131a';
+    ctx.fillText(`4 9${String(track.pgm).padStart(2, '0')}26 0${track.pgm}`, 352, 198);
+
+    // Window, mirrored: the full reel sits on the right from this side.
+    const win = ctx.createLinearGradient(0, 226, 0, 350);
+    win.addColorStop(0, '#0d0c12');
+    win.addColorStop(1, '#050408');
+    ctx.fillStyle = win;
+    roundRect(ctx, 64, 226, 384, 124, 24);
+    ctx.fill();
+    ctx.fillStyle = '#3a2a20';
+    ctx.beginPath();
+    ctx.arc(512 - HUB_UV[0][0], HUB_UV[0][1], 56, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(512 - HUB_UV[1][0], HUB_UV[1][1], 42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(512 - HUB_UV[1][0], 340, HUB_UV[1][0] - HUB_UV[0][0], 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    roundRect(ctx, 72, 230, 368, 14, 7);
+    ctx.fill();
+
+    // Record-protect tab (red = protected) and screws.
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(ctx, 14, 300, 34, 50, 6);
+    ctx.fill();
+    ctx.fillStyle = '#d23a2c';
+    roundRect(ctx, 18, 304, 26, 22, 4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (const [sx, sy] of [[10, 362], [502, 362], [36, 214], [476, 214]]) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
 /** Outer short end of the cassette: what faces you on the changer. */
 export function cassetteEnd(track: Track) {
   return canvasTexture(64, 384, (ctx) => {
