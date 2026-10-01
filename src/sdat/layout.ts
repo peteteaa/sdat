@@ -4,10 +4,10 @@ export const CASSETTE = { w: 2.2, h: 1.6, t: 0.3 };
 /** Printed face of the cassette, same aspect as its canvas (512x372). */
 export const FACE = { w: 2.1, h: 2.1 * (372 / 512) };
 
-export const PLAYER_POS = new Vector3(2.85, 0.45, -0.3);
+export const PLAYER_POS = new Vector3(2.05, 0.3, 0.15);
 export const PLAYER_YAW = -0.32;
 /** Cassette centre inside the bay, in player space. */
-export const SLOT = new Vector3(1.2, 0.36, -0.05);
+export const SLOT = new Vector3(-0.5, 0.18, 0);
 export const HOVER = 1.5;
 
 /** Turntable changer: cassettes stand on edge in radial slots, spine up. */

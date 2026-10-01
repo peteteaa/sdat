@@ -504,39 +504,90 @@ export function dialTexture(slots: number, angleOf: (i: number) => number) {
 
 const PRINT = '#c9c2e6';
 
-/** The SDAT wordmark: bold italic with the crossbar-less A from the anime. */
-export function logoTexture() {
-  return canvasTexture(512, 170, (ctx) => {
-    ctx.fillStyle = PRINT;
-    ctx.transform(1, 0, -0.22, 1, 30, 0);
-    ctx.font = `900 150px ${SANS}`;
-    ctx.fillText('SD', 20, 145);
-    const x = 20 + ctx.measureText('SD').width + 6;
-    ctx.beginPath();
-    ctx.moveTo(x, 145);
-    ctx.lineTo(x + 50, 18);
-    ctx.lineTo(x + 86, 18);
-    ctx.lineTo(x + 104, 145);
-    ctx.lineTo(x + 72, 145);
-    ctx.lineTo(x + 64, 60);
-    ctx.lineTo(x + 32, 145);
-    ctx.fill();
-    ctx.fillText('T', x + 104, 145);
+/** The SDAT wordmark: heavy italic with the crossbar-less A from the anime. Returns its width. */
+function wordmark(ctx: CanvasRenderingContext2D, x: number, base: number, size: number, color: string, measure = false) {
+  const k = size / 150;
+  ctx.save();
+  ctx.font = `900 ${size}px ${SANS}`;
+  const sd = ctx.measureText('SD').width;
+  const width = sd + 6 * k + 104 * k + ctx.measureText('T').width;
+  if (measure) {
+    ctx.restore();
+    return width;
+  }
+  ctx.fillStyle = color;
+  ctx.transform(1, 0, -0.22, 1, 0.22 * base, 0);
+  ctx.fillText('SD', x, base);
+  const ax = x + sd + 6 * k;
+  ctx.beginPath();
+  ctx.moveTo(ax, base);
+  ctx.lineTo(ax + 50 * k, base - 127 * k);
+  ctx.lineTo(ax + 86 * k, base - 127 * k);
+  ctx.lineTo(ax + 104 * k, base);
+  ctx.lineTo(ax + 72 * k, base);
+  ctx.lineTo(ax + 64 * k, base - 85 * k);
+  ctx.lineTo(ax + 32 * k, base);
+  ctx.fill();
+  ctx.fillText('T', ax + 104 * k, base);
+  ctx.restore();
+  return width;
+}
+
+/** Lid geometry shared with the print so the window frame lines up. */
+export const LID = { w: 2.4, d: 1.9, window: { z: 1.15, w: 1.95, d: 0.72 } };
+const LID_PX = { w: 1024, h: Math.round(1024 * (LID.d / LID.w)) };
+
+/**
+ * Everything printed on the lid, in lid space: canvas x = lid x, canvas y = lid z
+ * (0 at the hinge). The window area is left transparent.
+ */
+export function lidPrint() {
+  const { w, h } = LID_PX;
+  const k = w / LID.w;
+  return canvasTexture(w, h, (ctx) => {
+    // Black frame around the window, like the replica.
+    const win = LID.window;
+    const wx = w / 2 - (win.w / 2) * k;
+    const wy = win.z * k - (win.d / 2) * k;
+    ctx.strokeStyle = '#0c0b12';
+    ctx.lineWidth = 26;
+    roundRect(ctx, wx - 8, wy - 8, win.w * k + 16, win.d * k + 16, (win.d * k) / 2 + 8);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,200,220,0.35)';
+    ctx.lineWidth = 3;
+    roundRect(ctx, wx - 22, wy - 22, win.w * k + 44, win.d * k + 44, (win.d * k) / 2 + 22);
+    ctx.stroke();
+
+    // Gold corner logo at the back, by the hinge.
+    wordmark(ctx, 640, 132, 92, '#cfa94a');
+    ctx.fillStyle = '#cfa94a';
+    ctx.font = `italic 600 22px ${SANS}`;
+    ctx.fillText('Super Digital Audio Tape', 652, 164);
+
+    // Front strip: white anime-style logo, model print beside it.
+    const front = wy + win.d * k + 22;
+    wordmark(ctx, 100, h - 34, 96, '#e9e6f2');
+    ctx.fillStyle = '#ece9f4';
+    ctx.font = `italic 800 30px ${SANS}`;
+    ctx.fillText('DAT·CORDER', 600, front + 52);
+    ctx.font = `600 18px ${SANS}`;
+    ctx.fillText('SUPER DIGITAL AUDIO', 600, front + 80);
+    ctx.fillText('TAPE PLAYER  SD-D26', 600, front + 102);
   });
 }
 
-export function platePrint() {
-  return canvasTexture(1024, 256, (ctx) => {
+/** Keys and jack sit on the front edge; their labels print below them. */
+export const FRONT_PRINT = { x0: -1.62, w: 3.24, h: 0.075 };
+
+export function frontPrint(labels: { x: number; text: string }[]) {
+  const W = 2048;
+  const H = Math.round(W * (FRONT_PRINT.h / FRONT_PRINT.w));
+  return canvasTexture(W, H, (ctx) => {
     ctx.fillStyle = PRINT;
-    ctx.globalAlpha = 0.85;
-    ctx.font = `700 30px ${SANS}`;
+    ctx.font = `700 ${Math.round(H * 0.62)}px ${SANS}`;
     ctx.textAlign = 'center';
-    ['◀◀ AMS', 'PLAY', 'STOP', 'AMS ▶▶', 'OPEN'].forEach((t, i) => ctx.fillText(t, 140 + i * 200, 44));
-    ctx.textAlign = 'left';
-    ctx.globalAlpha = 0.55;
-    ctx.font = `600 26px ${SANS}`;
-    ctx.fillText('DIGITAL AUDIO TAPE-CORDER  TCD-D26', 30, 200);
-    ctx.fillRect(30, 150, 964, 3);
+    ctx.textBaseline = 'middle';
+    for (const l of labels) ctx.fillText(l.text, ((l.x - FRONT_PRINT.x0) / FRONT_PRINT.w) * W, H / 2);
   });
 }
 
